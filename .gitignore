@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+output/
+tmp/
+runtime_tools/
+GlassesTest_data/
+bundled_tools/
+*.log
+.DS_Store
+Thumbs.db
+_dist/
+*.zip

@@ -1,0 +1,46 @@
+{
+  "import": {
+    "card_resource_id": "com.moyoung.glasses:id/media_import_view",
+    "button_text": "导入",
+    "xpath": "",
+    "resource_id": "",
+    "text": "导入",
+    "desc": ""
+  },
+  "home": {
+    "tab_button_resource_id": "",
+    "tab_text": "首页",
+    "content_resource_id": "com.moyoung.glasses:id/home_content",
+    "back_button_resource_id": "com.moyoung.glasses:id/iv_back"
+  },
+  "gallery": {
+    "see_all_resource_id": "",
+    "title_resource_id": "",
+    "section_resource_id": "com.moyoung.glasses:id/home_gallery_section",
+    "media_grid_resource_id": "com.moyoung.glasses:id/home_gallery_list",
+    "fallback_text": "相册",
+    "see_all_fallback_text": "查看全部"
+  },
+  "feature": {
+    "grid_resource_id": "com.moyoung.glasses:id/home_discovery_list",
+    "text_resource_id": "com.moyoung.glasses:id/tv_feature",
+    "audio_text": "录音"
+  },
+  "device_control": {
+    "action": "com.moyoung.glasses.action.DEVICE_CONTROL",
+    "token": "",
+    "commands": {
+      "take_photo": "take_photo",
+      "start_audio": "start_audio",
+      "stop_audio": "stop_audio",
+      "start_video": "start_video",
+      "stop_video": "stop_video"
+    }
+  },
+  "launch": {
+    "activity": "com.moyoung.glasses/.users.welcome.SplashActivity"
+  },
+  "dialogs": {
+    "dismiss_texts": ["结束并开启导入文件", "确认", "确定", "知道了", "我知道了", "同意", "允许", "继续", "关闭", "稍后", "暂不", "跳过", "以后再说", "不再提示", "不再提醒", "好的", "OK", "Got it"]
+  }
+}

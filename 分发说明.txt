@@ -1,0 +1,19 @@
+GlassesTest 桌面版
+
+给别人：只需拷贝 GlassesTest.exe 这一个文件。
+
+使用：
+1. 放到任意可写文件夹（建议英文路径）
+2. 手机开 USB 调试并连接电脑
+3. 双击 GlassesTest.exe → 刷新设备 → 选手机 → 配置任务 → 开始测试
+4. 点「打开报告」看结果；证据列可点日志/截图
+
+数据：
+- 自动在 exe 同目录生成 GlassesTest_data\output\
+- 首次运行会解压 ADB/ffprobe 到 GlassesTest_data\runtime_tools\
+- 首次启动可能在 exe 旁出现 _MEI* 临时目录，属正常，退出后可删
+- 若提示无法创建临时目录，把 exe 放到 D: 等可写磁盘再试
+
+开发者重新打包：
+  powershell -ExecutionPolicy Bypass -File .\打包桌面exe.ps1
+  产物：_dist\GlassesTest.exe

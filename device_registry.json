@@ -1,0 +1,14 @@
+{
+  "aliases": {
+    "RFCY209KPCR": "111",
+    "HURC8PVOHYIBHMEQ": "小米测试机"
+  },
+  "glasses_labels": {
+    "RFCY209KPCR": "B",
+    "HURC8PVOHYIBHMEQ": "B"
+  },
+  "selected": [
+    "HURC8PVOHYIBHMEQ"
+  ],
+  "run_mode": "shared_glasses"
+}
