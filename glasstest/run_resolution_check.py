@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import glasstest.config as app_config
 from glasstest.app_ui import read_mcu_firmware_version, set_photo_orientation, set_video_orientation
 from glasstest.device_config_api import fetch_device_config, soft_version_from_mcu_firmware
-from glasstest.media_measure import measure_local_file, pull_media_file, pull_via_run_as, sizes_match
+from glasstest.media_measure import measure_local_file, pull_media_file, sizes_match
 from glasstest.media_paths import (
     MEDIA_RES_REL,
     extract_paths_from_import_result,
@@ -231,7 +231,9 @@ def run_one_case(
     case["device_path"] = device_path
     if app_config.ACTIVE_RUN_DIR:
         kind_name = "照片" if media == "photo" else "视频"
-        suffix = Path(device_path).suffix or (".jpg" if media == "photo" else ".mp4")
+        # 最终相册多为 jpg/mp4；media_res 原始 BK 视频常是 avi。优先公共文件时用标准后缀，
+        # 避免把 mp4 内容写进 .avi 文件名导致后续工具误判。
+        suffix = ".jpg" if media == "photo" else ".mp4"
         local_name = f"{orient_label}_{kind_name}{suffix}"
     else:
         local_name = f"{orient_label}_{media}_{Path(device_path).name}"
@@ -239,33 +241,26 @@ def run_one_case(
     case["pull_local_path"] = local_path
     case["pull_local_non_ascii"] = any(ord(ch) > 127 for ch in local_path)
     try:
-        try:
-            pull_media_file(serial=serial, package=package, device_path=device_path, local_path=local_path)
+        # 分辨率规格对的是「最终 App 输出」（插值/增强后的相册文件）。
+        # media_res 经 run-as 拿到的常是传感器原图（如 G01 bk800_1300 的 3264×2448），
+        # 会把插值后的 4160×3120 误判失败；因此优先公共相册，仅在找不到时回退原文件。
+        pulled_path, pull_via = pull_media_file(
+            serial=serial,
+            package=package,
+            device_path=device_path,
+            local_path=local_path,
+            prefer_public=True,
+        )
+        local_path = pulled_path
+        case["pull_via"] = pull_via
+        if pull_via == "public":
             case["measured_source"] = "public_or_processed"
-        except Exception as pull_exc:
-            case["pull_error"] = str(pull_exc)
-            case["pull_error_class"] = _extract_error_class(str(pull_exc))
-            logger.warning(
-                "主拉取失败 class=%s path=%s err=%s",
-                case["pull_error_class"],
-                local_path,
-                pull_exc,
-            )
-            # 增强/相册改名失败时，最终公共文件可能不存在。原始导入文件仍是有效证据，
-            # 用它测量真实输出，而不是只报告 adb 找不到处理后的文件。
-            if media != "video":
-                raise
-            raw_name = f"{orient_label}_视频_原始{Path(device_path).suffix or '.avi'}"
-            raw_path = str(pull_dir / raw_name)
-            pull_via_run_as(
-                serial=serial,
-                package=package,
-                device_path=device_path,
-                local_path=raw_path,
-            )
-            local_path = raw_path
+        else:
             case["measured_source"] = "raw_import"
-            case["public_pull_error"] = str(pull_exc)
+            logger.warning(
+                "未找到公共相册最终文件，回退测量 media_res 原始导入文件: %s",
+                device_path,
+            )
         measured = measure_local_file(local_path)
         actual = (int(measured["width"]), int(measured["height"]))
         case["actual"] = actual
@@ -278,6 +273,8 @@ def run_one_case(
         err_text = str(exc)
         case["measure_error"] = err_text
         case["measure_error_class"] = _extract_error_class(err_text)
+        case["pull_error"] = err_text
+        case["pull_error_class"] = case["measure_error_class"]
         logger.error(
             "测量失败 class=%s orientation=%s media=%s device_path=%s local=%s err=%s",
             case["measure_error_class"],

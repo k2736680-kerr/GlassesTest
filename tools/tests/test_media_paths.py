@@ -8,6 +8,7 @@ from glasstest.media_measure import (
     parse_device_path,
     parse_media_store_rows,
     pull_from_public_media,
+    pull_media_file,
     _parse_ls_size,
     _path_has_non_ascii,
     _public_name_rank,
@@ -246,6 +247,51 @@ class MediaPathTests(unittest.TestCase):
             classify_pull_error("run-as: package not debuggable: com.moyoung.glasses"),
             "package_not_debuggable",
         )
+
+    def test_pull_media_file_prefer_public_avoids_raw_media_res(self):
+        """Resolution check must measure gallery export, not pre-interp media_res."""
+        order = []
+
+        def fake_public(**kwargs):
+            order.append("public")
+            return kwargs["local_path"]
+
+        def fake_run_as(**kwargs):
+            order.append("run_as")
+            return kwargs["local_path"]
+
+        with (
+            mock.patch("glasstest.media_measure.pull_from_public_media", side_effect=fake_public),
+            mock.patch("glasstest.media_measure.pull_via_run_as", side_effect=fake_run_as),
+        ):
+            path, via = pull_media_file(
+                serial="SERIAL",
+                package=PKG,
+                device_path="files/moyoung/wifi/media_res/20261126170453.jpg",
+                local_path="photo.jpg",
+                prefer_public=True,
+            )
+        self.assertEqual(path, "photo.jpg")
+        self.assertEqual(via, "public")
+        self.assertEqual(order, ["public"])
+
+        order.clear()
+        with (
+            mock.patch(
+                "glasstest.media_measure.pull_from_public_media",
+                side_effect=RuntimeError("公共相册未找到"),
+            ),
+            mock.patch("glasstest.media_measure.pull_via_run_as", side_effect=fake_run_as),
+        ):
+            path, via = pull_media_file(
+                serial="SERIAL",
+                package=PKG,
+                device_path="files/moyoung/wifi/media_res/20261126170453.jpg",
+                local_path="photo.jpg",
+                prefer_public=True,
+            )
+        self.assertEqual(via, "run_as")
+        self.assertEqual(order, ["run_as"])
 
 
 if __name__ == "__main__":

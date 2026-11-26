@@ -449,23 +449,69 @@ def pull_media_file(
     device_path: str,
     local_path: str,
     timeout: float = 60.0,
-) -> str:
+    prefer_public: bool = False,
+) -> Tuple[str, str]:
+    """Pull media for measurement.
+
+    Returns ``(local_path, source)`` where ``source`` is ``public`` or ``run_as``.
+
+    ``prefer_public=True`` (resolution check): measure the App's final gallery
+    export after interpolation/enhance. ``media_res`` via run-as is often the
+    pre-interpolation sensor file and must only be a fallback.
+
+    ``prefer_public=False`` (legacy): try run-as first, then public gallery.
+    """
     logger.info(
-        "pull_media_file start device_path=%s local=%s local_non_ascii=%s",
+        "pull_media_file start device_path=%s local=%s local_non_ascii=%s prefer_public=%s",
         device_path,
         local_path,
         _path_has_non_ascii(local_path),
+        prefer_public,
     )
-    try:
-        pulled = pull_via_run_as(
+
+    def _try_run_as() -> str:
+        return pull_via_run_as(
             serial=serial,
             package=package,
             device_path=device_path,
             local_path=local_path,
             timeout=timeout,
         )
+
+    def _try_public() -> str:
+        return pull_from_public_media(
+            serial=serial,
+            device_path=device_path,
+            local_path=local_path,
+            timeout=timeout,
+        )
+
+    if prefer_public:
+        public_exc: Optional[Exception] = None
+        try:
+            pulled = _try_public()
+            logger.info("pull_media_file done via=public local=%s", pulled)
+            return pulled, "public"
+        except Exception as exc:
+            public_exc = exc
+            logger.info(
+                "公共相册拉取失败 class=%s，回退 media_res/run-as: %s",
+                classify_pull_error(str(exc), local_path=local_path, remote_path=device_path),
+                exc,
+            )
+        try:
+            pulled = _try_run_as()
+            logger.info("pull_media_file done via=run_as (fallback) local=%s", pulled)
+            return pulled, "run_as"
+        except Exception as run_as_exc:
+            raise RuntimeError(
+                f"{run_as_exc} | prior_public={public_exc}"
+            ) from run_as_exc
+
+    try:
+        pulled = _try_run_as()
         logger.info("pull_media_file done via=run_as local=%s", pulled)
-        return pulled
+        return pulled, "run_as"
     except Exception as exc:
         logger.info(
             "run-as 拉取失败 class=%s，改走公共相册: %s",
@@ -473,14 +519,9 @@ def pull_media_file(
             exc,
         )
         try:
-            pulled = pull_from_public_media(
-                serial=serial,
-                device_path=device_path,
-                local_path=local_path,
-                timeout=timeout,
-            )
+            pulled = _try_public()
             logger.info("pull_media_file done via=public local=%s", pulled)
-            return pulled
+            return pulled, "public"
         except Exception as public_exc:
             raise RuntimeError(
                 f"{public_exc} | prior_run_as={exc}"
