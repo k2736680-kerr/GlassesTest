@@ -36,6 +36,7 @@ from glasstest.config import (
     AUTOMATION_DEFAULT_TIMES,
     AUTOMATION_POST_TRIGGER_WAIT_SECONDS,
     AUTOMATION_PRE_TRIGGER_WAIT_SECONDS,
+    GLASSES_CAPTURE_STARTUP_LAG_SECONDS,
     FAILURE_ARTIFACT_DIR,
     LOG_LEVEL,
     PHONE_APP_PACKAGE,
@@ -233,15 +234,21 @@ def _trigger_task(phone_ops: PhoneOperations, config: FlowConfig) -> Dict[str, A
         return output
 
     if task == "audio":
-        # Glasses/App need a positive duration to actually start capture.
-        # Still send explicit stop + settle so recording does not linger.
+        # duration = 成片目标时长。指令到眼镜生效有固定延迟，用手动启停：
+        # start(0) → 等启动延迟 → 再录 duration → stop，避免设 5 秒只录到 ~2 秒。
         started = False
-        start_duration = max(1, duration)
+        target = max(1, duration)
+        startup_lag = max(0.0, float(GLASSES_CAPTURE_STARTUP_LAG_SECONDS))
         try:
-            output["start"] = phone_ops.start_device_audio_recording(duration_seconds=start_duration)
+            output["start"] = phone_ops.start_device_audio_recording(duration_seconds=0)
             started = True
-            wait_seconds = float(start_duration)
-            logger.info("录音执行等待 %.1fs（duration=%s，结束后强制停录）", wait_seconds, start_duration)
+            wait_seconds = startup_lag + float(target)
+            logger.info(
+                "录音执行等待 %.1fs（目标成片=%ss + 启动延迟=%.1fs，结束后强制停录）",
+                wait_seconds,
+                target,
+                startup_lag,
+            )
             time.sleep(wait_seconds)
             output["stop"] = phone_ops.stop_device_audio_recording()
             time.sleep(max(2.0, AUTOMATION_POST_TRIGGER_WAIT_SECONDS))
@@ -260,12 +267,19 @@ def _trigger_task(phone_ops: PhoneOperations, config: FlowConfig) -> Dict[str, A
 
     if task == "video":
         started = False
-        start_duration = max(1, duration)
+        target = max(1, duration)
+        startup_lag = max(0.0, float(GLASSES_CAPTURE_STARTUP_LAG_SECONDS))
         try:
-            output["start"] = phone_ops.start_device_video_recording(duration_seconds=start_duration)
+            # duration=0：由自动化控停，避免 App 按时长倒计时与眼镜启动延迟叠在一起。
+            output["start"] = phone_ops.start_device_video_recording(duration_seconds=0)
             started = True
-            wait_seconds = float(start_duration)
-            logger.info("视频执行等待 %.1fs（duration=%s，结束后强制停录）", wait_seconds, start_duration)
+            wait_seconds = startup_lag + float(target)
+            logger.info(
+                "视频执行等待 %.1fs（目标成片=%ss + 启动延迟=%.1fs，结束后强制停录）",
+                wait_seconds,
+                target,
+                startup_lag,
+            )
             time.sleep(wait_seconds)
             output["stop"] = phone_ops.stop_device_video_recording()
             time.sleep(max(2.0, AUTOMATION_POST_TRIGGER_WAIT_SECONDS))

@@ -28,7 +28,7 @@ from glasstest.media_paths import (
 )
 from glasstest.phone_operations import PhoneOperations
 from glasstest.resolution_spec import build_expectation_summary, expected_photo_size, expected_video_size
-from glasstest.config import PHONE_APP_PACKAGE, RUN_LOG_DIR
+from glasstest.config import GLASSES_CAPTURE_STARTUP_LAG_SECONDS, PHONE_APP_PACKAGE, RUN_LOG_DIR
 
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -183,8 +183,11 @@ def run_one_case(
         phone.take_device_photo()
         time.sleep(2.5)
     else:
+        # video_seconds = 成片目标时长；另补眼镜启动延迟，避免指令未生效就停录。
+        target = max(1, int(video_seconds))
+        startup_lag = max(0.0, float(GLASSES_CAPTURE_STARTUP_LAG_SECONDS))
         phone.start_device_video_recording(duration_seconds=0)
-        time.sleep(max(3, int(video_seconds)))
+        time.sleep(startup_lag + float(target))
         phone.stop_device_video_recording()
         time.sleep(2.5)
 
